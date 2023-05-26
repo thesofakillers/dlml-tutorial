@@ -335,7 +335,7 @@ means, log_scales, mixture_logits = model(**batch['inputs'])
 # gumbel-max sampling
 r1, r2 = 1e-5, 1.0 - 1e-5
 temp = (r1 - r2) * torch.rand(means.shape, device=means.device) + r2
-temp = logit_probs - torch.log(-torch.log(temp))
+temp = mixture_logits - torch.log(-torch.log(temp))
 argmax = torch.argmax(temp, -1)
 ```
 
