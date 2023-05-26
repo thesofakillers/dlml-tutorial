@@ -169,7 +169,7 @@ shortcomings of the softmax approach described in
 ## The How
 
 So how do we actually go about implementing this? This is one of those
-techniques were we do slightly different things depending on whether we are
+techniques where we do slightly different things depending on whether we are
 training or whether we just want outputs from our model (sampling). For
 completeness, I provide a full-reference to the code below on my
 [GitHub](https://github.com/thesofakillers/dlml-tutorial).
@@ -227,8 +227,10 @@ the edge cases described in step 6 of [the what](#the-what-and-some-more-why).
 
 ```python {linenos=table}
 # edges
-low_bound_log_prob = upper_bound_in - F.softplus(upper_bound_in) # log probability for edge case of 0 (before scaling)
-upp_bound_log_prob = - F.softplus(lower_bound_in) # log probability for edge case of 255 (before scaling)
+# log probability for edge case of 0 (before scaling)
+low_bound_log_prob = upper_bound_in - F.softplus(upper_bound_in)
+# log probability for edge case of 255 (before scaling)
+upp_bound_log_prob = - F.softplus(lower_bound_in)
 # middle
 mid_in = inv_scales * centered_y
 log_pdf_mid = mid_in - log_scales - 2.0 * F.softplus(mid_in)
@@ -246,11 +248,11 @@ $$
 (equation 3) where $\zeta$ is the
 [softplus function](https://jiafulow.github.io/blog/2019/07/11/softplus-and-softminus/).
 We also approximate the log probability at the center of the bin, based on the
-assumption that the log-density is constant in the bin of the observed sub-pixel
-value. This is used as a backup in cases where calculated probabilities are
-below 1e-5, which could happen due to numerical instability. This case is
-extremely rare and I would not dedicate too much thought to it, it is just there
-as a (rarely-used) backup.
+assumption that the log-density is constant in the bin of the observed value.
+This is used as a backup in cases where calculated probabilities are below 1e-5,
+which could happen due to numerical instability. This case is extremely rare and
+I would not dedicate too much thought to it, it is just there as a (rarely-used)
+backup.
 
 We can now put all these terms together into a single log likelihood tensor:
 
@@ -281,10 +283,10 @@ log_probs[
 ```
 
 We are almost done, but there is one last piece. So far we have computed the
-terms will minimize for learning the distribution(s), i.e. learning $\mu$ and
-$s$. We also need to learn which mixture distribution to sample from, i.e. we
-have to learn $\pi$. This is very simple, and consists in adding a log of the
-softmax over the logits (the $\pi_i$) outputted by our model:
+terms to minimize for learning the distribution(s), i.e. learning $\mu$ and $s$.
+We also need to learn which mixture distribution to sample from, i.e. we have to
+learn $\pi$. This is very simple, and consists in adding a log of the softmax
+over the logits (the $\pi_i$) outputted by our model:
 
 ```python {linenos=table}
 # modeling which mixture to sample from
@@ -375,7 +377,7 @@ And just like that, we have a way of sampling from our model.
 
 ## Closing words
 
-I hope this post can be useful. I came across DLML during my MSc thesis on
+I hope this post was helpful. I came across DLML during my MSc thesis on
 language-enabled imitation learning and while there are several high quality
 posts online, I couldn't find a single one that summarized the process in its
 entirety, from motivation to implementation, so I decided to write it myself,
