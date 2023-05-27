@@ -1,5 +1,5 @@
 > originally posted on
-> [giuliostarace.com/posts/dlml-tutorial/](https://www.giuliostarace.com/osts/dlml-tutorial/)
+> [giuliostarace.com/posts/dlml-tutorial/](https://www.giuliostarace.com/posts/dlml-tutorial/)
 > (recommended for better math rendering)
 
 # Discretized Logistic Mixture Likelihood - The Why, What and How
