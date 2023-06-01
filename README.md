@@ -204,7 +204,7 @@ y = batch['targets']
 # explained in text
 epsilon = (0.5*y_range) / (num_y_vals - 1)
 # convenience variable
-centered_y = y - means
+centered_y = y.unsqueeze(-1).repeat(1, 1, means.shape[-1]) - means
 # inputs to our sigmoid functions
 upper_bound_in = inv_scales * (centered_y + epsilon)
 lower_bound_in = inv_scales * (centered_y - epsilon)
@@ -222,8 +222,13 @@ However, here we are operating on the assumption that we have scaled our $y$'s
 to be in the range [-1, 1]. For 8-bit data, that is equivalent to scaling by
 $\frac{2}{2^8 - 1}$. We have to apply this same scaling to our $0.5$ boundaries
 for consistency. Note that `y_range` is simply $1 - (-1) = 2$, the $2$ in the
-numerator, and that `num_classes` for $y$ is $ 2^8 = 256 $. We now move on to
-the edge cases described in step 6 of [the what](#the-what-and-some-more-why).
+numerator, and that `num_classes` for $y$ is $ 2^8 = 256 $. A final note, we
+need need to play with `y`'s shape a little bit when computing `centered_y`:
+remember, for each target variable, we have multiple means (one for each mixture
+component), while we have a single target value. We therefore need to repeat the
+target value for each mixture component to complete the subtraction. We now move
+on to the edge cases described in step 6 of
+[the what](#the-what-and-some-more-why).
 
 ```python {linenos=table}
 # edges
