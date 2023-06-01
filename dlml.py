@@ -34,7 +34,7 @@ def compute_dlml_loss(
     # explained in text
     epsilon = (0.5 * y_range) / (num_y_vals - 1)
     # convenience variable
-    centered_y = y - means
+    centered_y = y.unsqueeze(-1).repeat(1, 1, means.shape[-1]) - means
     # inputs to our sigmoid functions
     upper_bound_in = inv_scales * (centered_y + epsilon)
     lower_bound_in = inv_scales * (centered_y - epsilon)
@@ -98,8 +98,9 @@ def train_single_batch(
     """
     Trains a single batch of data.
     """
-    # each of these have shape (B x K)
+    # each of these have shape (B x out_dim x K)
     means, log_scales, mixture_logits = model(**batch["inputs"])
+    # shape (B x out_dim)
     y = batch["targets"]
 
     optimizer.zero_grad()
