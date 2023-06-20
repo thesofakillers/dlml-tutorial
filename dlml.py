@@ -138,7 +138,7 @@ def sample(model, batch):
     sampled_mean = (dist_one_hot * means).sum(dim=-1)
 
     # scale the (0,1) uniform distribution and re-center it
-    y = (r1 - r2) * torch.rand(means.shape, device=means.device) + r2
+    y = (r1 - r2) * torch.rand(sampled_mean.shape, device=sampled_mean.device) + r2
 
     sampled_output = sampled_mean + torch.exp(sampled_log_scale) * (
         torch.log(y) - torch.log(1 - y)
