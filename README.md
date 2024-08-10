@@ -2,7 +2,11 @@
 > [giuliostarace.com/posts/dlml-tutorial/](https://www.giuliostarace.com/posts/dlml-tutorial/)
 > (recommended for better math rendering)
 
-# Discretized Logistic Mixture Likelihood - The Why, What and How
+> UPDATE (2024-08-10): I have added a bit more detail in [The How](#the-how)
+> section regarding how we implement the edge cases. From "Let's go line by
+> line" to "in lines 7 through 9".
+
+# Discretized Logistic Mixture Likelihood - The Why, What, and How
 
 In this post I will explain what the Discretized Logistic Mixture Likelihood
 (DLML)[^1] is. This is a modeling method particularly relevant to my MSc thesis,
@@ -242,22 +246,83 @@ log_pdf_mid = mid_in - log_scales - 2.0 * F.softplus(mid_in)
 log_prob_mid = log_pdf_mid - np.log((num_classes - 1) / 2)
 ```
 
-"Woah, what is going on here?" you may ask. Here we are making use of the
-[softplus-sigmoid relations](https://github.com/openai/pixel-cnn/issues/23), in
-particular that
+"Woah, what is going on here?" you may ask. Let's go line by line.
+
+In line 3, we are defining the log probability for the edge case where we have
+$y$ values close to and below to 0, the lower bound. We can use the CDF of the
+logistic distribution to compute this probability, since, for a random variable
+X, $\text{CDF}(X) = P(X \le x)$. Remember, we are working with discrete values,
+so we are not interested in the probability of $y$ being exactly 0, but rather
+the probability of $y$ being in the "bin" of 0 or below. In this case, we
+therefore want the CDF of $y + \epsilon$, the upper bound of the bin, which we
+have assigned in the variable `upper_bound_in`.
+
+Recall that the CDF of the logistic distribution is the sigmoid function:
 
 $$
-\zeta(x) = \int_{-\infty}^x \sigma(y)dy,
+\text{CDF}(x) = \sigma(x) = \frac{1}{1 + e^{-x}}
 $$
 
-(equation 3) where $\zeta$ is the
-[softplus function](https://jiafulow.github.io/blog/2019/07/11/softplus-and-softminus/).
-We also approximate the log probability at the center of the bin, based on the
-assumption that the log-density is constant in the bin of the observed value.
-This is used as a backup in cases where calculated probabilities are below 1e-5,
-which could happen due to numerical instability. This case is extremely rare and
-I would not dedicate too much thought to it, it is just there as a (rarely-used)
-backup.
+Recall that we are interested in _log_ probabilities:
+
+$$
+\log(\text{CDF}(x)) = \log(\sigma(x)) = -\log(1 + e^{-x})
+$$
+
+Finally, we can leverage the softplus function $\zeta(x) = \log(1 + e^x)$, and
+express the log probability in terms of $\zeta(x)$ for numerical stability. To
+do this, we note:
+
+$$
+\begin{align*}
+\log(\text{CDF}(x)) &= -\log(1 + e^{-x}) \\\\\\
+&= -\log\left(\frac{(1 + e^{-x})(e^{x})}{e^{x}}\right) \\\\\\
+&= -\log\left(\frac{e^{x} + 1}{e^{x}}\right) \\\\\\
+&= -(\log(e^{x} + 1) - \log(e^{x})) \\\\\\
+&= -(\log(e^{x} + 1) - x) \\\\\\
+&= x - \log(1 + e^{x}) \\\\\\
+&= x - \zeta(x)
+\end{align*},
+$$
+
+which is the expression we use in the code, with `upper_bound_in` as $x$.
+
+Let's now move on to line 5, where we compute the log probability for the edge
+case where we have $y$ values close to and above to 255, the upper bound. The
+reasoning here is identical, but we are now interested in values _above_ a
+certain value rather than below, so we rely on the _complement_ of the CDF of
+the _lower bound_ of the bin. This is why we use `lower_bound_in` in this case.
+
+In other words, we are interested in
+
+$$
+P(X > x) = 1 - P(X \le x) = 1 - \text{CDF}(x)
+$$
+
+which we can take the logarithm of and then manipulate in terms of $\zeta(x)$ as
+we did above:
+
+$$
+\begin{align*}
+\log(1 - \text{CDF}(x)) &= \log(\frac{e^{-x}}{1 + e^{-x}}) \\\\\\
+&=\log(e^{-x}) - \log(1 + e^{-x}) \\\\\\
+&= -x - \log(1 + e^{-x}) \\\\\\
+&= -x - \zeta(x) \\\\\\
+&= -\zeta(x),
+\end{align*}
+$$
+
+where in the final line we used the
+[identity](https://github.com/openai/pixel-cnn/issues/23)
+$\zeta(-x) = x + \zeta(x)$. This leaves us with the expression we use in the
+code, with `lower_bound_in` as $x$.
+
+Finally, in lines 7 through 9, we also approximate the log probability at the
+center of the bin, based on the assumption that the log-density is constant in
+the bin of the observed value. This is used as a backup in cases where
+calculated probabilities are below 1e-5, which could happen due to numerical
+instability. This case is extremely rare and I would not dedicate too much
+thought to it, it is just there as a (rarely-used) backup.
 
 We can now put all these terms together into a single log likelihood tensor:
 
@@ -370,8 +435,8 @@ $$
 (equation 4) where we select y from a random uniform distribution. In code:
 
 ```python {linenos=table}
- # scale the (0,1) uniform distribution and re-center it
- y = (r1 - r2) * torch.rand(sampled_mean.shape, device=sampled_mean.device) + r2
+# scale the (0,1) uniform distribution and re-center it
+y = (r1 - r2) * torch.rand(sampled_mean.shape, device=sampled_mean.device) + r2
 
 sampled_output = sampled_mean + torch.exp(sampled_log_scale) * (
     torch.log(y) - torch.log(1 - y)
